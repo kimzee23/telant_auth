@@ -1,13 +1,15 @@
 package org.example.enumtalentapi.dto;
 
-public class ApiResponse {
-    private String message;
-    private Object data;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-    public ApiResponse(String message, Object data) {
-        this.message = message;
-        this.data = data;
-    }
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class ApiResponse {
+    private String status;
+    private String message;
 
     // getters/setters
 }

@@ -1,23 +1,12 @@
-package org.example.enumtalentapi.entity;
+package org.example.enumtalentapi.dto;
 
-import lombok.Getter;
-import lombok.Setter;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.mapping.Document;
-import java.time.LocalDateTime;
+import lombok.Data;
 import java.util.List;
 
-@Getter
-@Setter
-@Document(collection = "talent_profiles")
-public class TalentProfile {
-    @Id
-    private String id;
-    private String userId;
-
+@Data
+public class TalentProfileRequest {
     private String firstName;
     private String lastName;
-    private String email;
     private String phone;
     private String location;
     private String profilePicture;
@@ -43,10 +32,4 @@ public class TalentProfile {
     private String workMode;
     private String salaryExpectation;
     private String locationPreference;
-
-    private int completeness;
-    private List<String> missingFields;
-    private boolean profileVisible = true;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
 }

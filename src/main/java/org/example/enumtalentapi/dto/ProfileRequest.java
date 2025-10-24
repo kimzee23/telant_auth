@@ -9,5 +9,5 @@ public class ProfileRequest {
     private String transcript;
     private String statementOfPurpose;
 
-    // getters/setters
+
 }

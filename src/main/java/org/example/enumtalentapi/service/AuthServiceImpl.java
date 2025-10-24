@@ -10,8 +10,12 @@ import org.example.enumtalentapi.repository.UserRepository;
 import org.example.enumtalentapi.repository.VerificationTokenRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.UUID;
 
+@Service
 @AllArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
@@ -19,58 +23,77 @@ public class AuthServiceImpl implements AuthService {
     private final VerificationTokenRepository tokenRepo;
     private final PasswordEncoder encoder;
 
-    public String signup(SignupRequest request){
-        userRepo.findByEmail(request.getEmail()).ifPresent(u -> {
-            if(u.isVerified()) throw new CustomException("EMAIL_IN_USE");
-            else resendToken(u);
-        });
+    @Override
+    public String signup(SignupRequest request) {
+        Optional<User> existingUser = userRepo.findByEmail(request.getEmail());
 
-        User user = new User();
-        user.setEmail(request.getEmail());
-        user.setPassword(encoder.encode(request.getPassword()));
-        user.setVerified(false);
-        userRepo.save(user);
+        // Check if email already exists
+        if (existingUser.isPresent()) {
+            User user = existingUser.get();
+            if (user.isVerified()) {
+                throw new CustomException("EMAIL_IN_USE_GUY");
+            } else {
+                tokenRepo.deleteByUser(user);
+                VerificationToken newToken = createVerificationToken(user);
+                return "Signup successful. Verify using token=" + newToken.getToken();
+            }
+        }
 
+
+        User newUser = new User();
+        newUser.setEmail(request.getEmail());
+        newUser.setPassword(encoder.encode(request.getPassword()));
+        newUser.setVerified(false);
+        userRepo.save(newUser);
+
+        VerificationToken token = createVerificationToken(newUser);
+        return "Signup successful. Verify using token=" + token.getToken();
+    }
+
+    private VerificationToken createVerificationToken(User user) {
         VerificationToken token = new VerificationToken();
         token.setToken(UUID.randomUUID().toString());
         token.setUser(user);
-        tokenRepo.save(token);
-
-        return "SIGNUP_SUCCESS, VERIFY EMAIL";
+        token.setUsed(false);
+        token.setExpiresAt(LocalDateTime.now().plusHours(24));
+        return tokenRepo.save(token);
     }
 
-    public String login(LoginRequest request){
+    @Override
+    public String login(LoginRequest request) {
         User user = userRepo.findByEmail(request.getEmail())
-                .orElseThrow(()->new CustomException("INVALID_CREDENTIALS"));
-        if(!user.isVerified()) throw new CustomException("EMAIL_NOT_VERIFIED");
+                .orElseThrow(() -> new CustomException("INVALID_CREDENTIALS"));
 
-        boolean matches = encoder.matches(request.getPassword(),user.getPassword());
-        if(!matches) throw new CustomException("INVALID_CREDENTIALS");
+        if (!user.isVerified())
+            throw new CustomException("EMAIL_NOT_VERIFIED");
 
-        return "LOGIN_SUCCESS";
+        boolean matches = encoder.matches(request.getPassword(), user.getPassword());
+        if (!matches)
+            throw new CustomException("INVALID_CREDENTIALS");
+        VerificationToken newToken = createVerificationToken(user);
+        return "LOGIN_SUCCESS " +
+                " token=" + newToken.getToken();
     }
 
-    public String verifyEmail(String tokenStr){
+    @Override
+    public String verifyEmail(String tokenStr) {
         VerificationToken token = tokenRepo.findByToken(tokenStr);
-        if(token==null) throw new CustomException("TOKEN_INVALID");
-        if(token.isUsed()) throw new CustomException("TOKEN_ALREADY_USED");
-        if(token.getExpiresAt().isBefore(java.time.LocalDateTime.now()))
+        if (token == null)
+            throw new CustomException("TOKEN_INVALID");
+
+        if (token.isUsed())
+            throw new CustomException("TOKEN_ALREADY_USED");
+
+        if (token.getExpiresAt().isBefore(LocalDateTime.now()))
             throw new CustomException("TOKEN_EXPIRED");
 
         User user = token.getUser();
         user.setVerified(true);
         token.setUsed(true);
+
         tokenRepo.save(token);
         userRepo.save(user);
 
         return "EMAIL_VERIFIED";
-    }
-
-    private void resendToken(User user){
-        VerificationToken token = new VerificationToken();
-        token.setToken(UUID.randomUUID().toString());
-        token.setUser(user);
-        tokenRepo.save(token);
-        throw new CustomException("VERIFICATION_RESENT");
     }
 }

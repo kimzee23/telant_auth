@@ -16,10 +16,9 @@ public class User {
 
     @Id
     private String id;
-
     private String email;
-
     private String password;
     private boolean verified;
+    private String token;
     private LocalDateTime createdAt = LocalDateTime.now();
 }
